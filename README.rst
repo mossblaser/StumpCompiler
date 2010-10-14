@@ -1,10 +1,19 @@
 StumpCompiler
 =============
 
+IMPORTANT NOTE: I have no idea how compilers in the real world work: I've never
+researched them or tried to learn about standard practices. This project is an
+experiment to see how many real-world compiler design techniques I reinvent
+myself without seeing how real compilers work. In short, please don't tell me if
+I'm doing something stupid or less than efficient unless it will result in the
+generated code being incorrect.
+
 A naive compiler for the STUMP CPU. No language is yet defined or available, at
 present I am working on the 'middle-end' of the compiler and so there's nothing
 much to see here (especially as most of the design and specification are in a
-notebook on my desk...)
+notebook on my desk...). Also, I don't intend to make a serious effort to make
+this compiler produce optimal code. I may experiment with some primative
+optimisations however.
 
 Terminology (So Far)
 ====================
