@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+# Include other modules in this namespace
+from load_value import LoadValue
+
 class Task(object):
 	"""
 	A task is a (possibly complex) "action" that can be performed but which when
