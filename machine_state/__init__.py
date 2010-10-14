@@ -12,7 +12,8 @@ class MachineState(object):
 	for tasks to convert a set of Values into registers. This object is immutable!
 	"""
 	
-	def __init__(self, system, registers = None, flags_set = False):
+	def __init__(self, system, registers = None, flags_set = False,
+	             read_values = None, written_values = None):
 		"""
 		Create a new MachineState. This is usually only done either by another
 		MachineState or a function.
@@ -37,6 +38,11 @@ class MachineState(object):
 			[0, system.get_sp()],        # SP
 			[0, system.get_pc()]         # PC
 		)
+		
+		# The set of all Values that have been read/written to at this machine
+		# state.
+		self.read_values    = read_values or set()
+		self.written_values = written_values or set()
 		
 		# A dictionary mapping values to register numbers.
 		self.value_to_register = {}
@@ -128,7 +134,7 @@ class MachineState(object):
 		
 		# Make a copy of the register list where all the register ages have been
 		# increased. This will form the new MachineState.
-		registers = tuple([age+1, value] for age, value in self.registers)
+		registers = [register[:] for register in self.registers]
 		
 		# Find out what register each read-Value will be available in and what Tasks
 		# need doing to load them.
@@ -185,27 +191,75 @@ class MachineState(object):
 		pre_task  = Task(pre_tasks)
 		post_task = Task(post_tasks)
 		
-		new_machine_state = MachineState(self.system, registers, flags_set)
+		# Generate the new machine state, recording accesses to read and written
+		# Values.
+		new_machine_state = MachineState(self.system, tuple(registers), flags_set,
+		                                 self.read_values.union(read_values),
+		                                 self.written_values.union(written_values))
 		
 		return (new_machine_state,
 		        read_reg_nums, write_reg_nums,
 		        pre_task, post_task)
 	
 	
-	def intersection(self, other):
+	def get_rejoin_state(self, other):
 		"""
-		Return the intersection between this MachineState and another machine state
-		(i.e. the MachineState after a two tasks whose final machine states are this
-		one and another one which is in common.)
+		Return the MachineState after this MachineState and another MachineState may
+		have executed (e.g. at the end of an if-statement where this MachineState
+		was the True condition and the other was the Else condition.). This
+		MachineState will contain only Values which were present in both input
+		MachineStates and will assume that both events may have occurred (e.g.
+		merging the read_values and written_values sets and OR-ing the flags_set.
 		"""
-		raise NotImplemented("TODO")
+		# Make a copy of the register list of this MachineState which will be
+		# modified to hold the intersection.
+		registers = [register[:] for register in self.registers]
+		
+		# Check each register of this and the other machine state. Only keep Values
+		# which are the same, otherwise assume that the register is free.
+		for reg_num, register in enumerate(other.registers):
+			if registers[reg_num][1] != register[1]:
+				registers[reg_num] = [max(registers[reg_num][0], register[0]), None]
+		
+		# Merge the list of possibly read/written Values
+		read_values = self.read_values.intersection(other.read_values)
+		written_values = self.written_values.intersection(other.written_values)
+		
+		flags_set = self.flags_set or other.flags_set
+		
+		return MachineState(self.system, tuple(registers), flags_set,
+		                    read_values, written_values)
 	
 	
-	def difference(self, other):
+	def get_task_to_reach_state(self, target):
 		"""
-		Return the difference between this MachineState and another machine state
-		(i.e. values that must be written out of the memory bank for the machine
-		state to match the other machine state. Note: the other machine state must
-		be a subset of this machine state.)
+		Return a task which will take this MachineState and result in the target
+		machine state being reached. This may be useful after a block in an
+		if-statement (for example) where the MachineState needs to be set to the
+		union of all the possible exits from the block (e.g. the rejoin state).
 		"""
-		raise NotImplemented("TODO")
+		
+		# Do an (incomplete) check to see if it is possible to reach the target
+		# state
+		assert(self.read_values.issubset(target.read_values))
+		assert(self.write_values.issubset(target.write_values))
+		assert(self.flags_set == target.flags_set)
+		
+		tasks = []
+		
+		for reg_num, (target_age, target_value) for enumerate(target.registers):
+			age, value = self.register[reg_num]
+			
+			if target_value != value:
+				# We can't deduce steps from one state to another where the target is
+				# not an empty register. This shouldn't happen if the target state was
+				# created by get_rejoin_state.
+				assert(target_value == None)
+				
+				tasks.append(register.get_store_from_register_task(reg_num))
+		
+		
+		# TODO: Make a task object which is specifically designed for these tasks
+		# which do not need to have a MachineState passed through them before
+		# compiling.
+		return Task(tasks)
