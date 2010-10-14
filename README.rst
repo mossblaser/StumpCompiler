@@ -47,3 +47,40 @@ Terminology (So Far)
 |                       | example one produced by the MachineState to load or |
 |                       | store a Value from memory to a register.            |
 +-----------------------+-----------------------------------------------------+
+
+
+Possible Compile Process
+========================
+
+'Front-end'
+
+1.  Tokenize Source File
+2.  Turn tokenized source into internal representation which is a more abstract
+    form of the language. This may include language constructs such as
+    non-1-word-integer types etc.
+3.  [Possible optimisation opportunity.]
+4.  Simplify into a more primative representation which contains very basic
+    constructs, all values simplified to one-word data types, no more
+    complicated flow control than a function.
+5.  [Possible optimisation opportunity.]
+
+'Middle-end'
+
+6.  Allocate registers throughout execution of all functions, inserting the
+    required load/store steps [optimisation step].
+7.  Decide if (and what) local variables should be kept on the stack during each
+    function's execution based on step 4.
+8.  Decide what constants and global variables need to defined.
+9.  [Possible optimisation opportunity.]
+
+'Back-end'
+
+10. Allocate memory and layout for constants, globals, functions.
+11. Generate a function table. [At this point all Values and function calls
+    should have a real address in memory (or relative to the stack).]
+12. Flatten Tasks into real instructions.
+13. Generate startup code (i.e. register setup and jump into main).
+14. [Possible optimisation opportunity.]
+15. Assemble.
+16. ???
+17. Profit!
