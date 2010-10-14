@@ -21,7 +21,11 @@ class Task(object):
 		Set the initial machine state for this task. This should only be called
 		once.
 		"""
-		self.subtasks[0].set_initial_machine_state(self, machine_state)
+		
+		# Propogate the MachineState through the task's subtasks
+		for subtask in self.subtasks:
+			subtask.set_initial_machine_state(machine_state)
+			machine_state = subtask.get_final_machine_state()
 	
 	
 	def get_final_machine_state(self):

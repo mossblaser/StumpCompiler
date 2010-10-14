@@ -12,7 +12,8 @@ class MachineState(object):
 	for tasks to convert a set of Values into registers. This object is immutable!
 	"""
 	
-	def __init__(self, system, registers = None, flags_set = False,
+	def __init__(self, system, registers = None,
+	             flags_set = False, flags_read = False, flags_age = 0,
 	             read_values = None, written_values = None):
 		"""
 		Create a new MachineState. This is usually only done either by another
@@ -49,7 +50,14 @@ class MachineState(object):
 		for reg_num, (age, value) in enumerate(self.registers):
 			self.value_to_register[value] = reg_num
 		
-		self.flags_set = flags_set
+		# Have the flags ever been set?
+		self.flags_set  = flags_set
+		
+		# Have the flags been read since they were last set?
+		self.flags_read = flags_read
+		
+		# How many "machine states ago" were the flags set?
+		self.flags_age  = 0
 	
 	
 	def get_register(self, registers, required_values = None):
@@ -95,14 +103,15 @@ class MachineState(object):
 		        oldest_reg_value.get_store_from_register_task(oldest_reg_num))
 	
 	
-	def values_to_reg_nums(self, read_values, write_values, flags_set = False):
+	def values_to_reg_nums(self, read_values, write_values,
+	                       flags_set = False, flags_read = False):
 		"""
 		This function is designed to be used when turning a task into a single
 		instruction.
 		
 		Takes two lists of Values, one which contains Values to be read from and
 		the other Values to write to. Also takes whether the flags will be set
-		during the instruction's execution.
+		during the instruction's execution and whether they are read.
 		
 		This process will return:
 		  * A new MachineState which represents the state of the machine after the
@@ -122,6 +131,9 @@ class MachineState(object):
 		# Ensure there are enough registers for the number of values requested
 		assert(len(read_values + write_values) < len(gp_reg_nums))
 		
+		# The flags cannot be set and read at the same time
+		assert(not(flags_set and flags_read))
+		
 		read_reg_nums = []
 		write_reg_nums = []
 		
@@ -131,6 +143,9 @@ class MachineState(object):
 		# Note if the flags have been set either previously or during this
 		# instruction.
 		flags_set = self.flags_set or flags_set
+		
+		if flags_set: flags_age = 0
+		else:         flags_age = self.flags_age + 1
 		
 		# Make a copy of the register list where all the register ages have been
 		# increased. This will form the new MachineState.
@@ -185,7 +200,7 @@ class MachineState(object):
 					# register was updated (but don't write back to memory).
 					registers[reg_num] = [0, value]
 		
-		# TODO: Make a task object which is specifically designed for these tasks
+		# TODO: Make a Task object which is specifically designed for these tasks
 		# which do not need to have a MachineState passed through them before
 		# compiling.
 		pre_task  = Task(pre_tasks)
@@ -193,7 +208,8 @@ class MachineState(object):
 		
 		# Generate the new machine state, recording accesses to read and written
 		# Values.
-		new_machine_state = MachineState(self.system, tuple(registers), flags_set,
+		new_machine_state = MachineState(self.system, tuple(registers),
+		                                 flags_set, flags_read, flags_age,
 		                                 self.read_values.union(read_values),
 		                                 self.written_values.union(written_values))
 		
@@ -226,8 +242,10 @@ class MachineState(object):
 		written_values = self.written_values.intersection(other.written_values)
 		
 		flags_set = self.flags_set or other.flags_set
+		flags_age = max(self.flags_age, other.flags_age)
 		
-		return MachineState(self.system, tuple(registers), flags_set,
+		return MachineState(self.system, tuple(registers),
+		                    flags_set, False, flags_age,
 		                    read_values, written_values)
 	
 	
