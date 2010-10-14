@@ -1,7 +1,7 @@
 #!/usr/bin/python
 
 # Include other modules in this namespace
-from load_value import LoadValue
+from load_value import LoadConstantValue
 
 class Task(object):
 	"""

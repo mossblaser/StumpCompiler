@@ -6,12 +6,10 @@ class LoadValue(Task):
 	"""
 	
 	def __init__(self, value, reg_num):
+		Task.__init__(self)
+		
 		self.value   = value
 		self.reg_num = reg_num
-		
-		# Todo: e.g. check literal 0 isn't loaded into a non R0 register
-		
-		Task.__init__(self)
 	
 	
 	def set_initial_machine_state(self, machine_state):
@@ -34,7 +32,7 @@ class LoadValue(Task):
 		Return whatever instructions are neccessary to load the value into the
 		specified register.
 		"""
-		pass
+		raise NotImplemented()
 	
 	
 	def __len__(self):
@@ -42,3 +40,30 @@ class LoadValue(Task):
 		Calculate the length of the instructions required to load the value.
 		"""
 		raise NotImplemented()
+
+
+
+class LoadConstantValue(LoadValue):
+	"""
+	A task to load a constant into a register.
+	"""
+	
+	def __init__(self, number, *args, **kwargs):
+		LoadValue.__init__(self, *args, **kwargs)
+		
+		# There's no point in a task to load the constant 0 as it will always be
+		# present in R0.
+		assert(self.value.number != 0)
+	
+	
+	def compile(self):
+		"""
+		Generate a load instruction to load the constant from the constant pool.
+		"""
+		#TODO
+		raise NotImplemented()
+	
+	
+	def __len__(self):
+		# It takes one instruction to load a value from the constant pool
+		return 1
