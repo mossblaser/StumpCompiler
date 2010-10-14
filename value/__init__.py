@@ -16,7 +16,8 @@ class Value(object):
 		# written back every time it is changed.
 		self.volatile = None
 		
-		# The memory location this Value is stored in or zero if it is not stored.
+		# The memory location this Value is stored in memory or None if it is not
+		# stored. Memory locations are in the form [addr_reg, offset_lit]
 		self.location = None
 	
 	

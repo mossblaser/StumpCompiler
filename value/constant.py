@@ -15,7 +15,7 @@ class Constant(Value):
 	
 	
 	def get_load_into_register_task(self, reg_num):
-		return task.LoadConstantValue(self.number, self, reg_num)
+		return task.LoadConstantValue(self, reg_num)
 	
 	
 	def get_store_from_register_task(self, reg_num):

@@ -48,7 +48,7 @@ class LoadConstantValue(LoadValue):
 	A task to load a constant into a register.
 	"""
 	
-	def __init__(self, number, *args, **kwargs):
+	def __init__(self, *args, **kwargs):
 		LoadValue.__init__(self, *args, **kwargs)
 		
 		# There's no point in a task to load the constant 0 as it will always be
@@ -60,8 +60,12 @@ class LoadConstantValue(LoadValue):
 		"""
 		Generate a load instruction to load the constant from the constant pool.
 		"""
-		#TODO
-		raise NotImplemented()
+		# Ensure that the location being loaded has a memory address
+		assert(self.value.location is not None)
+		
+		addr_reg, offset = self.value.location
+		
+		return [instruction.Load(self.reg_num, addr_reg, offset_lit = offset)]
 	
 	
 	def __len__(self):
