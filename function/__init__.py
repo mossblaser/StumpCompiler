@@ -23,6 +23,9 @@ class Function(object):
 		
 		# A list of tasks performed by the function.
 		self.tasks = tasks or []
+		
+		# List of registers that must be loaded/stored at the start and end
+		# TODO
 	
 	
 	def allocate_registers(self):
@@ -59,6 +62,10 @@ class Function(object):
 		# Arguments for the function placed next.
 		self.stack.extend(self.argument_values)
 		
+		# Record the number of stack elements which will have been pushed/reserved
+		# on the stack by the call.
+		self.initial_stack_offset = len(self.stack)
+		
 		# Make a list of all local variables used by the function but which aren't
 		# part of the arguments/return.
 		local_variables = (set(filter((lambda v: not v.local),
@@ -69,6 +76,10 @@ class Function(object):
 		# TODO: Don't allocate stack for local_variables that don't get written out
 		# of the registers.
 		self.stack.extend(local_variables)
+		
+		# Finally reserve stack space for saving registers
+		# TODO
+		
 		
 		# Stick the adddress into the values
 		for value, offset in zip(self.stack, range(len(self.stack)-1, -1, -1)):

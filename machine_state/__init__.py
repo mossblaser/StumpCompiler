@@ -12,7 +12,7 @@ class MachineState(object):
 	for tasks to convert a set of Values into registers. This object is immutable!
 	"""
 	
-	def __init__(self, system, registers = None,
+	def __init__(self, system, registers = None, clobbered_registers = None,
 	             flags_set = False, flags_read = False, flags_age = 0,
 	             read_values = None, written_values = None):
 		"""
@@ -39,6 +39,10 @@ class MachineState(object):
 			[0, system.get_sp()],        # SP
 			[0, system.get_pc()]         # PC
 		)
+		
+		# List of registers that have been clobbered as this MachineState has
+		# propogated through the program.
+		self.clobbered_registers = clobbered_registers or [False]*8
 		
 		# The set of all Values that have been read/written to at this machine
 		# state.
@@ -166,9 +170,9 @@ class MachineState(object):
 				# Load the Value into the allocated register
 				reg_loading_task = value.get_load_into_register_task(reg_num)
 				pre_tasks.append(reg_loading_task)
-			
-			# Update the new MachineState
-			registers[reg_num] = [0, value]
+				
+				# Update the new MachineState
+				registers[reg_num] = [0, value]
 		
 		# Find out what register each Value written will be available in and what
 		# Tasks need doing to store them after or make space before them.
@@ -206,9 +210,14 @@ class MachineState(object):
 		pre_task  = Task(pre_tasks)
 		post_task = Task(post_tasks)
 		
+		# Record which registers have been clobbered this iteration.
+		clobbered_registers = [a or b for (a,b) in zip((r!=None for r in registers),
+		                                                other.clobbered_registers)]
+		
 		# Generate the new machine state, recording accesses to read and written
 		# Values.
 		new_machine_state = MachineState(self.system, tuple(registers),
+		                                 clobbered_registers,
 		                                 flags_set, flags_read, flags_age,
 		                                 self.read_values.union(read_values),
 		                                 self.written_values.union(written_values))
@@ -237,6 +246,10 @@ class MachineState(object):
 			if registers[reg_num][1] != register[1]:
 				registers[reg_num] = [max(registers[reg_num][0], register[0]), None]
 		
+		# Take the OR of the two clobbered_registers lists
+		clobbered_registers = [a or b for (a, b) in zip(self.clobbered_registers,
+		                                                other.clobbered_registers)]
+		
 		# Merge the list of possibly read/written Values
 		read_values = self.read_values.intersection(other.read_values)
 		written_values = self.written_values.intersection(other.written_values)
@@ -244,7 +257,7 @@ class MachineState(object):
 		flags_set = self.flags_set or other.flags_set
 		flags_age = max(self.flags_age, other.flags_age)
 		
-		return MachineState(self.system, tuple(registers),
+		return MachineState(self.system, tuple(registers), clobbered_registers,
 		                    flags_set, False, flags_age,
 		                    read_values, written_values)
 	
