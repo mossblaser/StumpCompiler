@@ -21,6 +21,14 @@ class Value(object):
 		self.location = None
 	
 	
+	@property
+	def local(self):
+		"""
+		Is this value to be stored in a function's stack?
+		"""
+		return not (self.constant or self.volatile)
+	
+	
 	def get_load_into_register_task(self, reg_num):
 		"""
 		Get a Task which will load this Value into the specified register.
