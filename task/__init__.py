@@ -1,8 +1,5 @@
 #!/usr/bin/python
 
-# Include other modules in this namespace
-from load_value import LoadConstantValue
-
 class Task(object):
 	"""
 	A task is a (possibly complex) "action" that can be performed but which when
@@ -56,3 +53,14 @@ class Task(object):
 		passed into this task.
 		"""
 		return sum(len(subtask) for subtask in self.subtasks)
+	
+	def __repr__(self):
+		return "Task(%s)"%self.subtasks
+
+
+# Include other modules in this namespace
+from load_value  import LoadConstantValue
+from load_value  import LoadGlobalValue
+from load_value  import LoadVolatileValue
+from store_value import StoreGlobalValue
+from store_value import StoreVolatileValue

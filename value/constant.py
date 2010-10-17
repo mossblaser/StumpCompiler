@@ -1,5 +1,8 @@
 #!/usr/bin/python
 
+from task  import LoadConstantValue
+from value import Value
+
 class Constant(Value):
 	"""
 	A constant Value, known at compile time to have be a particular number.
@@ -14,13 +17,15 @@ class Constant(Value):
 		self.number   = number
 	
 	
+	def __repr__(self):
+		return "Constant(%d)"%self.number
+	
+	
 	def get_load_into_register_task(self, reg_num):
-		return task.LoadConstantValue(self, reg_num)
+		return LoadConstantValue(self, reg_num)
 	
 	
 	def get_store_from_register_task(self, reg_num):
-		"""
-		It is not possible to store a constant (as it should not be changed) so
-		calling this method will raise a NotImplemented exception.
-		"""
-		raise NotImplemented("Cannot store constant Value!")
+		# Constants can't be changed so nothing is done to write the value back to
+		# memory.
+		return None

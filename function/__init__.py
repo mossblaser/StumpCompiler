@@ -79,8 +79,3 @@ class Function(object):
 		
 		# Finally reserve stack space for saving registers
 		# TODO
-		
-		
-		# Stick the adddress into the values
-		for value, offset in zip(self.stack, range(len(self.stack)-1, -1, -1)):
-			value.location = [6, -offset]

@@ -49,19 +49,47 @@ class MachineState(object):
 		self.read_values    = read_values or set()
 		self.written_values = written_values or set()
 		
-		# A dictionary mapping values to register numbers.
-		self.value_to_register = {}
-		for reg_num, (age, value) in enumerate(self.registers):
-			self.value_to_register[value] = reg_num
-		
 		# Have the flags ever been set?
 		self.flags_set  = flags_set
 		
 		# Have the flags been read since they were last set?
 		self.flags_read = flags_read
 		
-		# How many "machine states ago" were the flags set?
-		self.flags_age  = 0
+		# How many "machine states ago" were the flags last set?
+		self.flags_age  = flags_age
+	
+	
+	def __repr__(self):
+		fmt_regs = ""
+		for num, (age, value) in enumerate(self.registers):
+			fmt_regs += (" "*26) + "[%d, %s],\n"%(age, value)
+		fmt_regs = "(" + fmt_regs.strip(" \n,") + ")"
+		
+		fmt_clob_regs = ""
+		for num, clob in enumerate(self.clobbered_registers):
+			fmt_clob_regs += (" "*36) + "%s,\n"%clob
+		fmt_clob_regs = "[" + fmt_clob_regs.strip(" \n,") + "]"
+		
+		
+		return(
+			("MachineState(system = %s,\n"
+			+"             registers = %s,\n"
+			+"             clobbered_registers = %s,\n"
+			+"             flags_set = %s,\n"
+			+"             flags_read = %s,\n"
+			+"             flags_age = %d,\n"
+			+"             read_values = %s,\n"
+			+"             written_values = %s)")%(
+				self.system,
+				fmt_regs,
+				fmt_clob_regs,
+				self.flags_set,
+				self.flags_read,
+				self.flags_age,
+				self.read_values,
+				self.written_values
+			)
+		)
 	
 	
 	def get_register(self, registers, required_values = None):
@@ -73,8 +101,8 @@ class MachineState(object):
 		which doesn't contain a value on the passed blacklist) and unloads that so
 		that the register is ready for the new value.
 		
-		Returns a register number to use and a list of tasks needed in order to
-		make the register avalable to use.
+		Returns a register number to use and a task needed in order to make the
+		register avalable to use (or None).
 		
 		Note: It is expected that there is not already a register in the register
 		bank containing the required Value. If there is, then this function's output
@@ -83,9 +111,9 @@ class MachineState(object):
 		"""
 		
 		# Try to find a free register
-		for reg_num, (age, value) in enumerate(self.registers):
+		for reg_num, (age, value) in enumerate(registers):
 			if value is None:
-				return reg_num
+				return reg_num, None
 		
 		# Try to find the oldest register whose value can be swapped to memory
 		# within the general purpose registers. (e.g. not R0, SP or PC)
@@ -96,12 +124,12 @@ class MachineState(object):
 			# Test that this register is not blacklisted
 			if reg_value not in required_values:
 				# Remember this register if it is the oldest seen so-far
-				if oldest_reg_num == None or registers[oldest_reg_num][0] < reg_age:
-					oldest_reg_num = oldest_reg_num
+				if oldest_reg_num is None or registers[oldest_reg_num][0] < reg_age:
+					oldest_reg_num = reg_num
 		
 		assert(oldest_reg_num is not None)
 		
-		oldest_reg_value = registers[oldest_reg_num]
+		oldest_reg_value = registers[oldest_reg_num][1]
 		
 		return (oldest_reg_num,
 		        oldest_reg_value.get_store_from_register_task(oldest_reg_num))
@@ -144,27 +172,38 @@ class MachineState(object):
 		pre_tasks = []
 		post_tasks = []
 		
+		# Set the age of the flags
+		if flags_set: flags_age = 0
+		else:         flags_age = self.flags_age + 1
+		
 		# Note if the flags have been set either previously or during this
 		# instruction.
 		flags_set = self.flags_set or flags_set
 		
-		if flags_set: flags_age = 0
-		else:         flags_age = self.flags_age + 1
-		
 		# Make a copy of the register list where all the register ages have been
 		# increased. This will form the new MachineState.
-		registers = [register[:] for register in self.registers]
+		registers = [[age + 1, value] for (age, value) in self.registers]
 		
 		# Find out what register each read-Value will be available in and what Tasks
 		# need doing to load them.
 		for value in read_values:
-			if value in self.value_to_register:
+			if value in [r[1] for r in registers]:
 				# Get the register already used to store this Value
-				read_reg_nums.append(self.value_to_register[value])
+				# Note: Volatile registers are added to the registers array but is
+				# removed before the new state is created (so that the register is
+				# considered dead). The reason for adding them in the first place is
+				# that otherwise the register would appear dead and it may be reused.
+				reg_num = [r[1] for r in registers].index(value)
+				read_reg_nums.append(reg_num)
+				
+				# Reset the age on this register
+				registers[reg_num][0] = 0
 			else:
 				# Get a suitable register for the value, freeing up one if neccessary.
-				reg_num, reg_freeing_task = self.get_register(read_values + write_values)
-				pre_tasks.append(reg_freeing_task)
+				reg_num, reg_freeing_task = self.get_register(registers,
+				                                              read_values + write_values)
+				if reg_freeing_task is not None:
+					pre_tasks.append(reg_freeing_task)
 				read_reg_nums.append(reg_num)
 				
 				# Load the Value into the allocated register
@@ -177,20 +216,23 @@ class MachineState(object):
 		# Find out what register each Value written will be available in and what
 		# Tasks need doing to store them after or make space before them.
 		for value in write_values:
-			if value in self.value_to_register:
+			if value in [r[1] for r in registers]:
 				# Note: it is assumed that if a Value is already in a register then it
-				# must be non-valotile and so doesn't need writing back to memory
+				# must be non-volatile and so doesn't need writing back to memory
 				# afterwards.
 				
 				# Get the register already used to store this Value, if possible
-				write_reg_nums.append(self.value_to_register[value])
+				reg_num = [r[1] for r in registers].index(value)
+				write_reg_nums.append(reg_num)
 				
 				# Update the new MachineState
 				registers[reg_num] = [0, value]
 			else:
 				# Get a suitable register for the value, freeing up one if neccessary.
-				reg_num, reg_freeing_task = self.get_register(read_values + write_values)
-				pre_tasks.append(reg_freeing_task)
+				reg_num, reg_freeing_task = self.get_register(registers,
+				                                              read_values + write_values)
+				if reg_freeing_task is not None:
+					pre_tasks.append(reg_freeing_task)
 				write_reg_nums.append(reg_num)
 				
 				if value.volatile:
@@ -211,8 +253,15 @@ class MachineState(object):
 		post_task = Task(post_tasks)
 		
 		# Record which registers have been clobbered this iteration.
-		clobbered_registers = [a or b for (a,b) in zip((r!=None for r in registers),
-		                                                other.clobbered_registers)]
+		clobbered_registers = [a or b for (a,b) in
+		                       zip((value!=None for (age, value) in registers),
+		                           self.clobbered_registers)]
+		
+		# Remove volatile Values from the list of live registers in the new state as
+		# the value is nolonger relevent.
+		for reg_num, (age, value) in enumerate(registers):
+			if value is not None and value.volatile:
+				registers[reg_num] = [0, None]
 		
 		# Generate the new machine state, recording accesses to read and written
 		# Values.
@@ -220,7 +269,7 @@ class MachineState(object):
 		                                 clobbered_registers,
 		                                 flags_set, flags_read, flags_age,
 		                                 self.read_values.union(read_values),
-		                                 self.written_values.union(written_values))
+		                                 self.written_values.union(write_values))
 		
 		return (new_machine_state,
 		        read_reg_nums, write_reg_nums,
@@ -278,7 +327,7 @@ class MachineState(object):
 		
 		tasks = []
 		
-		for reg_num, (target_age, target_value) for enumerate(target.registers):
+		for reg_num, (target_age, target_value) in enumerate(target.registers):
 			age, value = self.register[reg_num]
 			
 			if target_value != value:

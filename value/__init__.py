@@ -17,7 +17,7 @@ class Value(object):
 		self.volatile = None
 		
 		# The memory location this Value is stored in memory or None if it is not
-		# stored. Memory locations are in the form [addr_reg, offset_lit]
+		# stored.
 		self.location = None
 	
 	
@@ -41,3 +41,11 @@ class Value(object):
 		Get a Task which will store this Value from the specified register.
 		"""
 		raise NotImplemented()
+
+
+# Include other modules in this namespace
+from constant         import Constant
+from variables        import Global
+from variables        import Volatile
+from system_registers import StackPointer
+from system_registers import ProgramCounter

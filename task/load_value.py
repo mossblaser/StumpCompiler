@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+from task import Task
+
 class LoadValue(Task):
 	"""
 	Task to load a value into a given register.
@@ -27,7 +29,7 @@ class LoadValue(Task):
 		return self.machine_state
 	
 	
-	def compile(self);
+	def compile(self):
 		"""
 		Return whatever instructions are neccessary to load the value into the
 		specified register.
@@ -56,18 +58,57 @@ class LoadConstantValue(LoadValue):
 		assert(self.value.number != 0)
 	
 	
+	def __repr__(self):
+		return "LoadConstantValue(%s, %s)"%(self.value, self.reg_num)
+	
+	
 	def compile(self):
-		"""
-		Generate a load instruction to load the constant from the constant pool.
-		"""
-		# Ensure that the location being loaded has a memory address
-		assert(self.value.location is not None)
-		
-		addr_reg, offset = self.value.location
-		
-		return [instruction.Load(self.reg_num, addr_reg, offset_lit = offset)]
+		raise NotImplemented()
 	
 	
 	def __len__(self):
-		# It takes one instruction to load a value from the constant pool
-		return 1
+		raise NotImplemented()
+
+
+
+class LoadGlobalValue(LoadValue):
+	"""
+	A task to load a global variable into a register.
+	"""
+	
+	def __init__(self, *args, **kwargs):
+		LoadValue.__init__(self, *args, **kwargs)
+	
+	
+	def __repr__(self):
+		return "LoadGlobalValue(%s, %s)"%(self.value, self.reg_num)
+	
+	
+	def compile(self):
+		raise NotImplemented()
+	
+	
+	def __len__(self):
+		raise NotImplemented()
+
+
+
+class LoadVolatileValue(LoadValue):
+	"""
+	A task to load a volatile variable into a register.
+	"""
+	
+	def __init__(self, *args, **kwargs):
+		LoadValue.__init__(self, *args, **kwargs)
+	
+	
+	def __repr__(self):
+		return "LoadVolatileValue(%s, %s)"%(self.value, self.reg_num)
+	
+	
+	def compile(self):
+		raise NotImplemented()
+	
+	
+	def __len__(self):
+		raise NotImplemented()
